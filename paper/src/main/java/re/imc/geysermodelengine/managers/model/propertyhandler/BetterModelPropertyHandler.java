@@ -33,8 +33,14 @@ public class BetterModelPropertyHandler implements PropertyHandler {
         BetterModelEntityData betterModelEntityData = (BetterModelEntityData) entityData;
         Tracker tracker = (Tracker) betterModelEntityData.getModelInstance();
         ModelScaler scaler = tracker.scaler();
-        var scale = scaler.scale(tracker);
-        players.forEach(player -> EntityUtils.sendCustomScale(player, betterModelEntityData.getEntity().getEntityId(), scale));
+        float scale = scaler.scale(tracker);
+
+        if (!firstSend) {
+            if (scale == lastScale) return;
+            betterModelEntityData.getEntityTask().setLastScale(scale);
+        }
+
+        EntityUtils.sendCustomScale(players, betterModelEntityData.getEntity().getEntityId(), scale);
     }
 
     @Override
@@ -46,13 +52,12 @@ public class BetterModelPropertyHandler implements PropertyHandler {
         Color color = new Color(0xFFFFFF);
         if (betterModelEntityData.isHurt()) color = new Color(betterModelEntityData.getEntityTracker().damageTintValue());
 
-        if (firstSend) {
+        if (!firstSend) {
             if (color.equals(lastColor)) return;
+            betterModelEntityData.getEntityTask().setLastColor(color);
         }
 
-        for (Player player : players) {
-            EntityUtils.sendCustomColor(player, betterModelEntityData.getEntity().getEntityId(), color);
-        }
+        EntityUtils.sendCustomColor(players, betterModelEntityData.getEntity().getEntityId(), color);
 
         betterModelEntityData.setHurt(false);
     }
@@ -122,18 +127,19 @@ public class BetterModelPropertyHandler implements PropertyHandler {
             i++;
         }
 
+        Map<String, Integer> changes = intUpdates;
         if (!firstSend) {
-            if (intUpdates.equals(model.getEntityTask().getLastIntSet())) {
-                return;
-            } else {
-                model.getEntityTask().getLastIntSet().clear();
-                model.getEntityTask().getLastIntSet().putAll(intUpdates);
-            }
+            Map<String, Integer> lastIntSet = model.getEntityTask().getLastIntSet();
+            changes = new HashMap<>(intUpdates);
+            changes.entrySet().removeIf(entry -> entry.getValue().equals(lastIntSet.get(entry.getKey())));
+            if (changes.isEmpty()) return;
+            lastIntSet.clear();
+            lastIntSet.putAll(intUpdates);
         }
 
         if (plugin.getConfigManager().getConfig().getBoolean("options.debug.animations")) plugin.getLogger().info(animUpdates.toString());
 
-        players.forEach(player -> EntityUtils.sendIntProperties(player, entity, intUpdates));
+        EntityUtils.sendIntProperties(players, entity, changes);
     }
 
     public String unstripName(RenderedBone bone) {

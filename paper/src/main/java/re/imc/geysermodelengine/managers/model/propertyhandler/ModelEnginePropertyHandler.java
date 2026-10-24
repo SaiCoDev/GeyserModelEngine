@@ -42,9 +42,10 @@ public class ModelEnginePropertyHandler implements PropertyHandler {
 
             if (!firstSend) {
                 if (average == lastScale) return;
+                modelEngineEntityData.getEntityTask().setLastScale(average);
             }
 
-            players.forEach(player -> EntityUtils.sendCustomScale(player, modelEngineEntityData.getEntity().getEntityId(), average));
+            EntityUtils.sendCustomScale(players, modelEngineEntityData.getEntity().getEntityId(), average);
         } catch (Exception err) {
             throw new RuntimeException(err);
         }
@@ -57,9 +58,12 @@ public class ModelEnginePropertyHandler implements PropertyHandler {
         ModelEngineEntityData data = (ModelEngineEntityData) entityData;
         Color color = calculateCurrentColor(data);
 
-        if (!firstSend && color.equals(lastColor)) return;
+        if (!firstSend) {
+            if (color.equals(lastColor)) return;
+            data.getEntityTask().setLastColor(color);
+        }
 
-        players.forEach(player -> EntityUtils.sendCustomColor(player, data.getEntity().getEntityId(), color));
+        EntityUtils.sendCustomColor(players, data.getEntity().getEntityId(), color);
     }
 
     @Override
@@ -142,18 +146,19 @@ public class ModelEnginePropertyHandler implements PropertyHandler {
         putTintProperties(model, boneTints, intUpdates);
         putManualAnimatorProperties(model, intUpdates);
 
+        Map<String, Integer> changes = intUpdates;
         if (!firstSend) {
-            if (intUpdates.equals(model.getEntityTask().getLastIntSet())) {
-                return;
-            } else {
-                model.getEntityTask().getLastIntSet().clear();
-                model.getEntityTask().getLastIntSet().putAll(intUpdates);
-            }
+            Map<String, Integer> lastIntSet = model.getEntityTask().getLastIntSet();
+            changes = new HashMap<>(intUpdates);
+            changes.entrySet().removeIf(entry -> entry.getValue().equals(lastIntSet.get(entry.getKey())));
+            if (changes.isEmpty()) return;
+            lastIntSet.clear();
+            lastIntSet.putAll(intUpdates);
         }
 
         if (plugin.getConfigManager().getConfig().getBoolean("options.debug.animations")) plugin.getLogger().info(animUpdates.toString());
 
-        players.forEach(player -> EntityUtils.sendIntProperties(player, entity, intUpdates));
+        EntityUtils.sendIntProperties(players, entity, changes);
     }
 
     private void processBone(ModelEngineEntityData model, BlueprintBone bone, Map<String, Boolean> map, Map<String, Integer> tintMap) {

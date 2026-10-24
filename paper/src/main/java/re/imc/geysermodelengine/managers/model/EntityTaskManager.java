@@ -90,9 +90,7 @@ public class EntityTaskManager {
     }
 
     public void sendHitBoxToAll(EntityData model) {
-        for (Player viewer : model.getViewers()) {
-            EntityUtils.sendCustomHitBox(viewer, model.getEntity().getEntityId(), 0.01f, 0.01f);
-        }
+        EntityUtils.sendCustomHitBox(model.getViewers(), model.getEntity().getEntityId(), 0.01f, 0.01f);
     }
 
     //TODO move this
