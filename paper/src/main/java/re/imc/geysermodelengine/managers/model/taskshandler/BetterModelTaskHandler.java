@@ -55,8 +55,6 @@ public class BetterModelTaskHandler implements TaskHandler {
 
     @Override
     public void runAsync() {
-        plugin.getEntityTaskManager().checkViewers(entityData, entityData.getViewers());
-
         PacketEntity entity = entityData.getEntity();
         if (entity.isDead()) return;
 
@@ -64,11 +62,9 @@ public class BetterModelTaskHandler implements TaskHandler {
         BaseEntity entitySource = entityData.getEntitySource();
         EntityTracker entityTracker = entityData.getEntityTracker();
 
-        entityData.teleportToModel();
-
         if (entitySource.dead() || entityTracker.forRemoval()) {
             removed = true;
-            entity.remove();
+            plugin.getEntityTaskManager().removeEntity(entityData);
 
             plugin.getModelManager().removeModel(entitySource.id(), entityData);
 
@@ -78,9 +74,11 @@ public class BetterModelTaskHandler implements TaskHandler {
             return;
         }
 
-        if (tick % 40 == 0) {
-            viewers.removeIf(viewer -> !plugin.getEntityTaskManager().canSee(viewer, entityData.getEntity(), entityData.getModelInstance()));
-        }
+        plugin.getEntityTaskManager().checkViewers(entityData, viewers);
+
+        entityData.teleportToModel();
+
+        if (tick % 40 == 0) plugin.getEntityTaskManager().dropHiddenViewers(entityData);
 
         tick++;
         if (tick > 400) {
@@ -103,6 +101,7 @@ public class BetterModelTaskHandler implements TaskHandler {
         if (plugin.getConfigManager().getConfig().getBoolean("options.debug.send-data")) plugin.getLogger().info("Setting custom entity data for " + betterModelEntityData.getEntityTracker().name());
 
         CustomEntitySpawnSynchronizer.sendAndSpawn(plugin, player, entityData.getEntity().getEntityId(), customIdentifier, delay, () -> {
+            if (!plugin.getEntityTaskManager().isViewing(entityData, player)) return;
             entityData.getEntity().sendSpawnPacket(Collections.singletonList(player));
 
             plugin.getSchedulerPool().schedule(() -> {

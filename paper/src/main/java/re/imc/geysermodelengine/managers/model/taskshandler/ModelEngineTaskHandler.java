@@ -60,17 +60,13 @@ public class ModelEngineTaskHandler implements TaskHandler {
         PacketEntity entity = entityData.getEntity();
         if (entity == null || entity.isDead()) return;
 
-        plugin.getEntityTaskManager().checkViewers(entityData, entityData.getViewers());
-
-        entityData.teleportToModel();
-
         Set<Player> viewers = entityData.getViewers();
         ActiveModel activeModel = entityData.getActiveModel();
         ModeledEntity modeledEntity = entityData.getModeledEntity();
 
         if (activeModel.isDestroyed() || activeModel.isRemoved()) {
             removed = true;
-            entity.remove();
+            plugin.getEntityTaskManager().removeEntity(entityData);
 
             plugin.getModelManager().removeModel(modeledEntity.getBase().getEntityId(), entityData);
 
@@ -82,9 +78,11 @@ public class ModelEngineTaskHandler implements TaskHandler {
             return;
         }
 
-        if (tick % 40 == 0) {
-            viewers.removeIf(viewer -> !plugin.getEntityTaskManager().canSee(viewer, entityData.getEntity(), entityData.getModelInstance()));
-        }
+        plugin.getEntityTaskManager().checkViewers(entityData, viewers);
+
+        entityData.teleportToModel();
+
+        if (tick % 40 == 0) plugin.getEntityTaskManager().dropHiddenViewers(entityData);
 
         tick++;
         if (tick > 400) {
@@ -107,6 +105,7 @@ public class ModelEngineTaskHandler implements TaskHandler {
         if (plugin.getConfigManager().getConfig().getBoolean("options.debug.send-data")) plugin.getLogger().info("Setting custom entity data for " + modelEngineEntityData.getActiveModel().getBlueprint().getName());
 
         CustomEntitySpawnSynchronizer.sendAndSpawn(plugin, player, entityData.getEntity().getEntityId(), customIdentifier, delay, () -> {
+            if (!plugin.getEntityTaskManager().isViewing(entityData, player)) return;
             entityData.getEntity().sendSpawnPacket(Collections.singletonList(player));
 
             plugin.getSchedulerPool().schedule(() -> {

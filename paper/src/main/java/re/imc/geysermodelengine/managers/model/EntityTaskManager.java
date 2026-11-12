@@ -18,6 +18,7 @@ import re.imc.geysermodelengine.packet.entity.PacketEntity;
 import re.imc.geysermodelengine.util.BedrockUtils;
 
 import java.util.*;
+import java.util.concurrent.TimeUnit;
 
 public class EntityTaskManager {
 
@@ -50,12 +51,40 @@ public class EntityTaskManager {
                     sendSpawnPacket(model, onlinePlayer);
                 }
             } else {
-                if (viewers.contains(onlinePlayer)) {
-                    model.getEntity().sendEntityDestroyPacket(Collections.singletonList(onlinePlayer));
-                    viewers.remove(onlinePlayer);
-                }
+                if (viewers.remove(onlinePlayer)) destroyFor(model, onlinePlayer);
             }
         }
+    }
+
+    public void dropHiddenViewers(EntityData model) {
+        for (Player viewer : List.copyOf(model.getViewers())) {
+            if (canSee(viewer, model.getEntity(), model.getModelInstance())) continue;
+            model.getViewers().remove(viewer);
+            if (viewer.isOnline()) destroyFor(model, viewer);
+        }
+    }
+
+    public boolean isViewing(EntityData model, Player player) {
+        return !model.getEntity().isDead() && model.getViewers().contains(player);
+    }
+
+    public void destroyFor(EntityData model, Player player) {
+        model.getEntity().sendEntityDestroyPacket(Collections.singletonList(player));
+        plugin.getSchedulerPool().schedule(() -> {
+            if (!player.isOnline() || isViewing(model, player)) return;
+            model.getEntity().sendEntityDestroyPacket(Collections.singletonList(player));
+        }, staleSpawnWindow(), TimeUnit.MILLISECONDS);
+    }
+
+    public void removeEntity(EntityData model) {
+        List<Player> viewers = List.copyOf(model.getViewers());
+        model.getEntity().remove();
+        plugin.getSchedulerPool().schedule(() -> model.getEntity().sendEntityDestroyPacket(viewers.stream().filter(Player::isOnline).toList()), staleSpawnWindow(), TimeUnit.MILLISECONDS);
+    }
+
+    private long staleSpawnWindow() {
+        long requestedDelay = Math.max(plugin.getConfigManager().getConfig().getInt("models.join-send-delay", 20), plugin.getConfigManager().getConfig().getInt("models.spawn-send-delay", 1));
+        return Math.max(requestedDelay, plugin.getConfigManager().getConfig().getInt("models.custom-entity-sync-delay", 150)) + 100L;
     }
 
     private void sendSpawnPacket(EntityData model, Player onlinePlayer) {

@@ -32,7 +32,7 @@ public class PacketEntity {
     private float headYaw;
     private float headPitch;
 
-    private boolean removed = false;
+    private volatile boolean removed = false;
 
     public PacketEntity(EntityType type, Set<Player> viewers, Location location) {
         this.id = ThreadLocalRandom.current().nextInt(300000000, 400000000);
