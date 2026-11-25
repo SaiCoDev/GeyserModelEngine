@@ -26,29 +26,36 @@ public class BetterModelHandler implements ModelHandler {
         this.plugin = plugin;
     }
 
+    /**
+     * Takes an EntityTracker (a model on an entity) or a DummyTracker (a model at a fixed location with no entity,
+     * like CraftEngine furniture).
+     */
     @Override
     public void createModel(Object... objects) {
-        EntityTracker entityTracker = (EntityTracker) objects[0];
-        BaseEntity entitySource = entityTracker.sourceEntity();
-
-        int entityID = entitySource.id();
+        Tracker tracker = (Tracker) objects[0];
+        BaseEntity entitySource = tracker instanceof EntityTracker entityTracker ? entityTracker.sourceEntity() : null;
 
         // Checked before creating the entity data: creating it starts its task, which would spawn an untracked entity.
         // A tracker being removed doesn't count, so a model can be added again right after it was removed.
-        Map<Model, EntityData> entityDataCache = plugin.getModelManager().getEntitiesCache().get(entityID);
-        if (entityDataCache != null) {
-            for (Model existing : entityDataCache.keySet()) {
-                if (!existing.getName().equals(entityTracker.name())) continue;
-                if (!(existing.getEntityData() instanceof BetterModelEntityData existingData)) continue;
+        // A DummyTracker has no entity to share, so it can't already be tracked.
+        if (entitySource != null) {
+            Map<Model, EntityData> entityDataCache = plugin.getModelManager().getEntitiesCache().get(entitySource.id());
+            if (entityDataCache != null) {
+                for (Model existing : entityDataCache.keySet()) {
+                    if (!existing.getName().equals(tracker.name())) continue;
+                    if (!(existing.getEntityData() instanceof BetterModelEntityData existingData)) continue;
 
-                if (!existingData.getEntitySource().dead() && !existingData.getEntityTracker().forRemoval()) return;
+                    if (!existingData.isGone()) return;
+                }
             }
         }
 
         PropertyHandler propertyHandler = plugin.getEntityTaskManager().getPropertyHandler();
-        EntityData entityData = new BetterModelEntityData(plugin, entitySource, entityTracker);
+        BetterModelEntityData entityData = new BetterModelEntityData(plugin, entitySource, tracker);
 
-        Model model = new BetterModelModel(entityTracker, this, entityData, propertyHandler);
+        Model model = new BetterModelModel(tracker, this, entityData, propertyHandler);
+
+        int entityID = entityData.getCacheKey();
 
         plugin.getModelManager().getModelEntitiesCache().put(entityID, model);
         plugin.getModelManager().getEntitiesCache().compute(entityID, (id, models) -> {

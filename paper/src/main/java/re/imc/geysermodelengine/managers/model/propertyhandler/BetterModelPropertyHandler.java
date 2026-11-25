@@ -5,6 +5,7 @@ import kr.toxicity.model.api.bone.RenderedBone;
 import kr.toxicity.model.api.data.blueprint.BlueprintAnimation;
 import kr.toxicity.model.api.data.renderer.RenderPipeline;
 import kr.toxicity.model.api.nms.ModelDisplay;
+import kr.toxicity.model.api.tracker.EntityTracker;
 import kr.toxicity.model.api.tracker.ModelScaler;
 import kr.toxicity.model.api.tracker.Tracker;
 import kr.toxicity.model.api.util.function.BonePredicate;
@@ -50,7 +51,10 @@ public class BetterModelPropertyHandler implements PropertyHandler {
         BetterModelEntityData betterModelEntityData = (BetterModelEntityData) entityData;
 
         Color color = new Color(0xFFFFFF);
-        if (betterModelEntityData.isHurt()) color = new Color(betterModelEntityData.getEntityTracker().damageTintValue());
+        // Only an EntityTracker takes damage; a DummyTracker is never hurt.
+        if (betterModelEntityData.isHurt() && betterModelEntityData.getTracker() instanceof EntityTracker entityTracker) {
+            color = new Color(entityTracker.damageTintValue());
+        }
 
         if (!firstSend) {
             if (color.equals(lastColor)) return;
@@ -79,13 +83,13 @@ public class BetterModelPropertyHandler implements PropertyHandler {
         Map<String, Boolean> animUpdates = new HashMap<>();
         Set<String> anims = new HashSet<>();
 
-        model.getEntityTracker().bones().forEach(bone -> processBone(model, bone, boneUpdates));
+        model.getTracker().bones().forEach(bone -> processBone(model, bone, boneUpdates));
 
-        RenderPipeline handler = model.getEntityTracker().getPipeline();
+        RenderPipeline handler = model.getTracker().getPipeline();
 
         for (RenderedBone renderedBone : handler.bones()) {
-            if (model.getEntityTracker().bone(renderedBone.name()).runningAnimation() != null) {
-                BlueprintAnimation anim = model.getEntityTracker().renderer().animations().get(renderedBone.runningAnimation().name());
+            if (model.getTracker().bone(renderedBone.name()).runningAnimation() != null) {
+                BlueprintAnimation anim = model.getTracker().renderer().animations().get(renderedBone.runningAnimation().name());
                 anims.add(renderedBone.runningAnimation().name());
                 if (anim.override() && anim.loop() == AnimationIterator.Type.PLAY_ONCE) {
                     break;
@@ -165,7 +169,7 @@ public class BetterModelPropertyHandler implements PropertyHandler {
             return true;
         });
 
-        RenderedBone activeBone = entityData.getEntityTracker().bone(bone.name());
+        RenderedBone activeBone = entityData.getTracker().bone(bone.name());
 
         ModelDisplay modelDisplay = activeBone.getDisplay();
         if (modelDisplay == null) return;

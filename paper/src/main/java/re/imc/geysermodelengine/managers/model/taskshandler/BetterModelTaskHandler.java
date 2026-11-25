@@ -2,8 +2,6 @@ package re.imc.geysermodelengine.managers.model.taskshandler;
 
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
-import kr.toxicity.model.api.entity.BaseEntity;
-import kr.toxicity.model.api.tracker.EntityTracker;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import re.imc.geysermodelengine.GeyserModelEngine;
@@ -59,14 +57,12 @@ public class BetterModelTaskHandler implements TaskHandler {
         if (entity.isDead()) return;
 
         Set<Player> viewers = entityData.getViewers();
-        BaseEntity entitySource = entityData.getEntitySource();
-        EntityTracker entityTracker = entityData.getEntityTracker();
 
-        if (entitySource.dead() || entityTracker.forRemoval()) {
+        if (entityData.isGone()) {
             removed = true;
             plugin.getEntityTaskManager().removeEntity(entityData);
 
-            plugin.getModelManager().removeModel(entitySource.id(), entityData);
+            plugin.getModelManager().removeModel(entityData.getCacheKey(), entityData);
 
             cancel();
 
@@ -96,9 +92,9 @@ public class BetterModelTaskHandler implements TaskHandler {
     public void sendEntityData(EntityData entityData, Player player, int delay) {
         BetterModelEntityData betterModelEntityData = (BetterModelEntityData) entityData;
         long propertiesSendDelay = plugin.getConfigManager().getConfig().getInt("models.properties-send-delay", 1);
-        String customIdentifier = plugin.getConfigManager().getConfig().getString("models.namespace") + ":" + betterModelEntityData.getEntityTracker().name().toLowerCase();
+        String customIdentifier = plugin.getConfigManager().getConfig().getString("models.namespace") + ":" + betterModelEntityData.getTracker().name().toLowerCase();
 
-        if (plugin.getConfigManager().getConfig().getBoolean("options.debug.send-data")) plugin.getLogger().info("Setting custom entity data for " + betterModelEntityData.getEntityTracker().name());
+        if (plugin.getConfigManager().getConfig().getBoolean("options.debug.send-data")) plugin.getLogger().info("Setting custom entity data for " + betterModelEntityData.getTracker().name());
 
         CustomEntitySpawnSynchronizer.sendAndSpawn(plugin, player, entityData.getEntity().getEntityId(), customIdentifier, delay, () -> {
             if (!plugin.getEntityTaskManager().isViewing(entityData, player)) return;

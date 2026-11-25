@@ -2,6 +2,7 @@ package re.imc.geysermodelengine.listener;
 
 import com.ticxo.modelengine.api.entity.EntityDataTrackers;
 import kr.toxicity.model.api.bukkit.BetterModelBukkit;
+import kr.toxicity.model.api.event.CreateDummyTrackerEvent;
 import kr.toxicity.model.api.event.CreateEntityTrackerEvent;
 
 import kr.toxicity.model.api.tracker.EntityTracker;
@@ -27,6 +28,11 @@ public class BetterModelListener implements Listener {
 
     public void onModelSpawn() {
         BetterModelBukkit.platform().eventBus().subscribe(plugin, CreateEntityTrackerEvent.class, event -> {
+            plugin.getModelManager().getModelHandler().createModel(event.tracker());
+        });
+
+        // Models with no entity behind them, at a fixed location: CraftEngine furniture uses these.
+        BetterModelBukkit.platform().eventBus().subscribe(plugin, CreateDummyTrackerEvent.class, event -> {
             plugin.getModelManager().getModelHandler().createModel(event.tracker());
         });
     }
